@@ -1757,14 +1757,16 @@ class ConfigOpts(collections.Mapping):
         defined by another module it can use this method to explicitly
         declare the dependency.
 
+        The import will only be located within the module's package, not
+        populated to the caller's package.
+
         :param name: the name/dest of the opt
         :param module_str: the name of a module to import
         :param group: an option OptGroup object or group name
         :raises: NoSuchOptError, NoSuchGroupError
         """
         __import__(module_str)
-        _conf = CONF.get_conf(module_str.split('.', 1)[0])
-        _conf._get_opt_info(name, group)
+        self._get_opt_info(name, group)
 
     def import_group(self, group, module_str):
         """Import an option group from a module.
@@ -1777,13 +1779,15 @@ class ConfigOpts(collections.Mapping):
         defined by another module it can use this method to explicitly
         declare the dependency.
 
+        The import will only be located within the module's package, not
+        populated to the caller's package.
+
         :param group: an option OptGroup object or group name
         :param module_str: the name of a module to import
         :raises: ImportError, NoSuchGroupError
         """
         __import__(module_str)
-        _conf = CONF.get_conf(module_str.split('.', 1)[0])
-        _conf._get_group(group)
+        self._get_group(group)
 
     @__clear_cache
     def set_override(self, name, override, group=None):
@@ -2317,14 +2321,24 @@ class ConfSelector(object):
     """
     CONFS = {}
 
+    def get_conf(self, project):
+        """Returns the ConfigOpts object for the corresponding package.
+
+        :param package: a package name
+        :returns: a ConfigOpts object or None
+        """
+        return self.CONFS.get(project, None)
+
     def __getattr__(self, name):
+        """Routes the classmethod to the corresponding ConfigOpts object.
+
+        :param name: ConfigOpts classmethod name
+        :raise: AttributeError if the classmethod is not existing
+        """
         caller = inspect.stack()[1][0]
         project = inspect.getmodule(caller).__name__.split('.', 1)[0]
         self.CONFS[project] = self.CONFS.get(project, None) or ConfigOpts()
         return getattr(self.CONFS[project], name)
-
-    def get_conf(self, project):
-        return self.CONFS.get(project, None)
 
 
 CONF = ConfSelector()
