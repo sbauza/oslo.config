@@ -276,6 +276,7 @@ import copy
 import errno
 import functools
 import glob
+import inspect
 import itertools
 import logging
 import os
@@ -2305,4 +2306,21 @@ class ConfigOpts(collections.Mapping):
             return value
 
 
-CONF = ConfigOpts()
+class ConfSelector(object):
+    """Provides a single ConfigOpts object per project.
+
+    In order to prevent DuplicateOptError, puts each project with its own CONF
+    within a dict where key is the project name (eg. 'nova') and the value is
+    the corresponding ConfigOpts.
+    """
+    CONFS = {}
+
+    def __getattr__(self, name):
+        caller = inspect.stack()[1][0]
+        pkg = inspect.getmodule(caller).__name__.split('.', 1)[0]
+        _conf = self.CONFS.get(pkg, None)
+        if _conf is None:
+            self.CONFS[pkg] = ConfigOpts()
+        return getattr(self.CONFS[pkg], name)
+
+CONF = ConfSelector()
