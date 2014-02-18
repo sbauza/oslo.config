@@ -1763,7 +1763,8 @@ class ConfigOpts(collections.Mapping):
         :raises: NoSuchOptError, NoSuchGroupError
         """
         __import__(module_str)
-        self._get_opt_info(name, group)
+        _conf = CONF.get_conf(module_str.split('.', 1)[0])
+        _conf._get_opt_info(name, group)
 
     def import_group(self, group, module_str):
         """Import an option group from a module.
@@ -1781,7 +1782,8 @@ class ConfigOpts(collections.Mapping):
         :raises: ImportError, NoSuchGroupError
         """
         __import__(module_str)
-        self._get_group(group)
+        _conf = CONF.get_conf(module_str.split('.', 1)[0])
+        _conf._get_group(group)
 
     @__clear_cache
     def set_override(self, name, override, group=None):
@@ -2317,10 +2319,12 @@ class ConfSelector(object):
 
     def __getattr__(self, name):
         caller = inspect.stack()[1][0]
-        pkg = inspect.getmodule(caller).__name__.split('.', 1)[0]
-        _conf = self.CONFS.get(pkg, None)
-        if _conf is None:
-            self.CONFS[pkg] = ConfigOpts()
-        return getattr(self.CONFS[pkg], name)
+        project = inspect.getmodule(caller).__name__.split('.', 1)[0]
+        self.CONFS[project] = self.CONFS.get(project, None) or ConfigOpts()
+        return getattr(self.CONFS[project], name)
+
+    def get_conf(self, project):
+        return self.CONFS.get(project, None)
+
 
 CONF = ConfSelector()
